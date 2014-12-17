@@ -57,7 +57,7 @@ namespace TestTask.Logic
 
             var item = new CheckingResult { Ip = IpConverter.LongToString(ip) };
             
-            lock (_result)// TODO replace lock by ConcurrentQueue?
+            lock (_result)
             {
                 _result.Add(item);   
             }
@@ -104,11 +104,11 @@ namespace TestTask.Logic
             var ping = new Ping();
 
             var pingReply = ping.Send(check.Ip);
-            check.IPStatus = pingReply.Status;//TODO maybe it is possible to cancel current request
+            check.IPStatus = pingReply.Status;//TODO implement cancellation by Cancellation token
 
             if (check.IPStatus == IPStatus.Success)
             {
-                lock (_httpList)// TODO replace lock by ConcurrentQueue?
+                lock (_httpList)
                 {
                     _httpList.Add(check);    
                 }
