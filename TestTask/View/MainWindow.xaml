@@ -60,6 +60,7 @@
                     <DataGridTextColumn Header="IP адрес" Binding="{Binding Ip}" />
                     <DataGridTextColumn Header="IP статус" Binding="{Binding IPStatus}" />
                     <DataGridTextColumn Header="HTTP статус" Binding="{Binding HttpStatusCode}" />
+                    <DataGridTextColumn Header="Ошибка" Binding="{Binding Error}"  />
                 </DataGrid.Columns>
             </DataGrid>
         </xctk:BusyIndicator>

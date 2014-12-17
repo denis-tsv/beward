@@ -10,5 +10,7 @@ namespace TestTask.Model
         public IPStatus? IPStatus { get; set; }
 
         public HttpStatusCode? HttpStatusCode { get; set; }
+
+        public string Error { get; set; }
     }
 }

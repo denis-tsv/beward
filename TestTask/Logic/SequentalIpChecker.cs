@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Net.Http;
 using System.Net.NetworkInformation;
 using System.Threading;
 using System.Threading.Tasks;
@@ -55,33 +56,36 @@ namespace TestTask.Logic
 
         private void ProcessHttp()
         {
-            foreach (var item in _httpQueue)
+            foreach (var check in _httpQueue)
             {
                 _cancelTokenSource.Token.ThrowIfCancellationRequested();
 
                 string address;
                 if (_port != 0)
                 {
-                    var adresswithport = string.Format("{0}:{1}", item.Ip, _port);
+                    var adresswithport = string.Format("{0}:{1}", check.Ip, _port);
                     address = string.Format(Settings.Default.HttpCheckAddressFormat, adresswithport);
                 }
                 else
                 {
-                    address = string.Format(Settings.Default.HttpCheckAddressFormat, item.Ip);
+                    address = string.Format(Settings.Default.HttpCheckAddressFormat, check.Ip);
                 }
 
-                var request = WebRequest.Create(address);
-                try
+                using (var client = new HttpClient())
                 {
-                    var response = (HttpWebResponse)request.GetResponse();
-                    item.HttpStatusCode = response.StatusCode;
-                }
-                catch (WebException we)
-                {
-                    var response = we.Response as HttpWebResponse;
-                    if (response != null)
+                    try
                     {
-                        item.HttpStatusCode = response.StatusCode;
+                        var task = client.GetAsync(address, _cancelTokenSource.Token);
+                        task.Wait();
+                        check.HttpStatusCode = task.Result.StatusCode;
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        check.Error = ex.Message;
                     }
                 }
 
