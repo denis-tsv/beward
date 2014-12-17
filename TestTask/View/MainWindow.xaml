@@ -1,0 +1,62 @@
+﻿<Window x:Class="TestTask.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:testTask="clr-namespace:TestTask"
+        xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+        xmlns:converters="clr-namespace:TestTask.Converters"
+        Title="Проверка IP" Height="350" Width="525">
+    <Window.DataContext>
+        <testTask:MainWindowViewModel />
+    </Window.DataContext>
+    <Window.Resources>
+        <converters:IPAddressToStringConverter x:Key="IpAddressToStringConverter" />
+        <converters:BooleanNegationConverter x:Key="BooleanNegationConverter" />
+    </Window.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid Grid.Row="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition />
+                <ColumnDefinition />
+                <ColumnDefinition />
+                <ColumnDefinition />
+            </Grid.ColumnDefinitions>
+            
+            <TextBlock Text="От" Grid.Row="0" Grid.Column="0" />
+            <TextBlock Text="До" Grid.Row="1" Grid.Column="0" />
+            
+            <TextBox Text="{Binding FromIp, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}" 
+                     IsEnabled="{Binding IsBusy, Converter={StaticResource BooleanNegationConverter}}" 
+                     Grid.Row="0" Grid.Column="1"/>
+            <TextBox Text="{Binding ToIp, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}" 
+                     IsEnabled="{Binding IsBusy, Converter={StaticResource BooleanNegationConverter}}"
+                     Grid.Row="1" Grid.Column="1"/>
+            
+            <Button Content="Начать параллельную проверку" Command="{Binding StartParallelCheckingCommand}" Grid.Row="0" Grid.Column="2" />
+            <Button Content="Начать последовательную проверку" Command="{Binding StartSequentalCheckingCommand}" Grid.Row="1" Grid.Column="2" />
+
+            <TextBlock Text="{Binding ParallelTime}" Grid.Row="0" Grid.Column="3" />
+            <TextBlock Text="{Binding SequentalTime}" Grid.Row="1" Grid.Column="3" />
+            
+            <Button Content="Отмена" Command="{Binding CancelCommand}" Grid.RowSpan="2" Grid.Column="4" />
+        </Grid>
+        <xctk:BusyIndicator Grid.Row="1" IsBusy="{Binding IsBusy}" >
+            <DataGrid AutoGenerateColumns="False" ItemsSource="{Binding CheckingResults}">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="IP адрес" Binding="{Binding Ip}" />
+                    <DataGridTextColumn Header="IP статус" Binding="{Binding IPStatus}" />
+                    <DataGridTextColumn Header="HTTP статус" Binding="{Binding HttpStatusCode}" />
+                </DataGrid.Columns>
+            </DataGrid>
+        </xctk:BusyIndicator>
+    </Grid>
+</Window>

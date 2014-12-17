@@ -1,0 +1,12 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="TestTask.Properties" GeneratedClassName="Settings">
+  <Profiles />
+  <Settings>
+    <Setting Name="HttpCheckAddressFormat" Type="System.String" Scope="User">
+      <Value Profile="(Default)">http://{0}/cgi-bin/admin/privacy.cgi</Value>
+    </Setting>
+    <Setting Name="HttpCheckPort" Type="System.String" Scope="User">
+      <Value Profile="(Default)">6064</Value>
+    </Setting>
+  </Settings>
+</SettingsFile>
