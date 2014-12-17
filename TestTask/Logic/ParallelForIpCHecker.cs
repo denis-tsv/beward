@@ -24,7 +24,7 @@ namespace TestTask.Logic
             }
         }
 
-        public Task<List<CheckingResult>> CheckIpRange(IPAddress @from, IPAddress to)
+        public Task<List<CheckingResult>> CheckIpRange(IPAddress from, IPAddress to)
         {
             long start = IpConverter.IPAddressToLong(from);
             long end = IpConverter.IPAddressToLong(to);
@@ -38,16 +38,10 @@ namespace TestTask.Logic
                 //it is possible to put cancellation token into ParallelOptions, but it is unable to take it from ParallelOptions, so I will use field
                 Parallel.For(start, end + 1, CreateCheckingResult);
 
-                //_cancelTokenSource.Token.ThrowIfCancellationRequested();
-
                 Parallel.ForEach(_result, CheckAvailability);
-
-                //_cancelTokenSource.Token.ThrowIfCancellationRequested();
 
                 Parallel.ForEach(_httpList, CheckHttp);
 
-                //_cancelTokenSource.Token.ThrowIfCancellationRequested();
-                
                 return _result;
             }, _cancelTokenSource.Token);
 
@@ -56,7 +50,7 @@ namespace TestTask.Logic
 
         private void CreateCheckingResult(long ip, ParallelLoopState state)
         {
-            _cancelTokenSource.Token.ThrowIfCancellationRequested(); //TODO replace by state.Stop() and throw exception in CheckIpRange method (state.Stop not throws exception)
+            _cancelTokenSource.Token.ThrowIfCancellationRequested(); 
 
             var item = new CheckingResult { Ip = IpConverter.LongToString(ip) };
             
@@ -68,7 +62,7 @@ namespace TestTask.Logic
 
         private void CheckHttp(CheckingResult check, ParallelLoopState state)
         {
-            _cancelTokenSource.Token.ThrowIfCancellationRequested();  //TODO replace by state.Stop() and throw exception in CheckIpRange method (state.Stop not throws exception)
+            _cancelTokenSource.Token.ThrowIfCancellationRequested();  
             
             bool usePort = !string.IsNullOrEmpty(Settings.Default.HttpCheckPort);
 
@@ -101,9 +95,8 @@ namespace TestTask.Logic
 
         private void CheckAvailability(CheckingResult check, ParallelLoopState state)
         {
-            _cancelTokenSource.Token.ThrowIfCancellationRequested(); //TODO replace by state.Stop() and throw exception in CheckIpRange method (state.Stop not throws exception)
-            //if (_cancelTokenSource.Token.IsCancellationRequested) state.Stop();
-
+            _cancelTokenSource.Token.ThrowIfCancellationRequested(); 
+            
             var ping = new Ping();
 
             var pingReply = ping.Send(check.Ip);
