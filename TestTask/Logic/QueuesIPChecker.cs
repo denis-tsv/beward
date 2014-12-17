@@ -10,68 +10,65 @@ using TestTask.Properties;
 
 namespace TestTask.Logic
 {
-    public class ParallelIPChecker : IIPChecker
+    public class QueuesIPChecker : IIPChecker
     {
         private ConcurrentQueue<CheckingResult> _httpQueue = new ConcurrentQueue<CheckingResult>();
         private List<CheckingResult> _result = new List<CheckingResult>();
-        private Thread _availabilityCheckerThread;
-        private Thread _httpCheckerThread;
-
+        
         private AutoResetEvent _httpEvent = new AutoResetEvent(false);
 
         private bool _availabilityFinished = false;
 
-        private bool _interrupt = false;
-
-        private bool _finished = false;
-        private TaskCompletionSource<List<CheckingResult>> _tcs;
+        private CancellationTokenSource _cancelTokenSource;
+        private Task<List<CheckingResult>> _task;
         public Task<List<CheckingResult>> CheckIpRange(IPAddress from, IPAddress to)
         {
             long start = IpConverter.IPAddressToLong(from);
             long end = IpConverter.IPAddressToLong(to);
 
             if (start > end) throw new InvalidOperationException("Start > End");
-            
-            _tcs = new TaskCompletionSource<List<CheckingResult>>();
 
-            Task.Factory.StartNew(() =>
+            _cancelTokenSource = new CancellationTokenSource();
+        
+            _task = Task.Factory.StartNew(() =>
             {
-                for (long i = start; i <= end; i++)
-                {
-                    var item = new CheckingResult { Ip = IpConverter.LongToString(i) };
-                    _result.Add(item);
-                }
+                FillQueue(start, end);
 
-                _availabilityCheckerThread = new Thread(CheckAvailability);
-                _availabilityCheckerThread.Start();
+                var availabilityTask = Task.Factory.StartNew(CheckAvailability);
+                var httpTask = Task.Factory.StartNew(CheckHttp);
 
-                _httpCheckerThread = new Thread(CheckHttp);
-                _httpCheckerThread.Start();
+                Task.WaitAll(availabilityTask, httpTask);
 
-                _availabilityCheckerThread.Join();
-                _httpCheckerThread.Join();
-
-                _finished = true;
-
-                _tcs.SetResult(_result);
+                return _result;
             });
 
-            return _tcs.Task;
+            return _task;
+        }
+
+        private void FillQueue(long start, long end)
+        {
+            for (long i = start; i <= end; i++)
+            {
+                _cancelTokenSource.Token.ThrowIfCancellationRequested();
+
+                var item = new CheckingResult {Ip = IpConverter.LongToString(i)};
+                _result.Add(item);
+            }
         }
 
         private void CheckHttp()
         {
             bool usePort = !string.IsNullOrEmpty(Settings.Default.HttpCheckPort);
 
-            while (true)
+            while (!_availabilityFinished)
             {
-                _httpEvent.WaitOne(100);
+                _cancelTokenSource.Token.ThrowIfCancellationRequested();
 
-                if (_interrupt) return;
+                _httpEvent.WaitOne(100);
 
                 while (!_httpQueue.IsEmpty)
                 {
-                    if (_interrupt) return;
+                    _cancelTokenSource.Token.ThrowIfCancellationRequested();
 
                     CheckingResult check;
                     if (_httpQueue.TryDequeue(out check))
@@ -103,8 +100,6 @@ namespace TestTask.Logic
                         }
                     }
                 }
-
-                if (_availabilityFinished || _interrupt) break;
             }
         }
 
@@ -114,7 +109,7 @@ namespace TestTask.Logic
 
             foreach (var check in _result)
             {
-                if (_interrupt) return;
+                _cancelTokenSource.Token.ThrowIfCancellationRequested();
 
                 var pingReply = ping.Send(check.Ip);
                 check.IPStatus = pingReply.Status;
@@ -131,11 +126,9 @@ namespace TestTask.Logic
         
         public void Dispose()
         {
-            if (!_finished)
+            if (!_task.IsCompleted)
             {
-                _tcs.SetCanceled();
-
-                _interrupt = true;
+                _cancelTokenSource.Cancel();
             }
         }
     }

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Net.NetworkInformation;
+using System.Threading;
 using System.Threading.Tasks;
 using TestTask.Model;
 using TestTask.Properties;
@@ -12,36 +13,42 @@ namespace TestTask.Logic
     {
         private readonly List<CheckingResult> _availabilityQueue = new List<CheckingResult>();
         private readonly List<CheckingResult> _httpQueue = new List<CheckingResult>();
-
-        private bool _started = false;
-        private TaskCompletionSource<List<CheckingResult>> _tcs;
+        private Task<List<CheckingResult>> _task;
+        private CancellationTokenSource _cancelTokenSource;
         public Task<List<CheckingResult>> CheckIpRange(IPAddress from, IPAddress to)
         {
             long start = IpConverter.IPAddressToLong(from);
             long end = IpConverter.IPAddressToLong(to);
 
             if (start > end) throw new InvalidOperationException("Start > End");
-            _started = true;
 
-            _tcs = new TaskCompletionSource<List<CheckingResult>>();
+            _cancelTokenSource = new CancellationTokenSource();
 
-            Task.Factory.StartNew(() =>
+            _task = Task.Factory.StartNew(() =>
             {
-                for (long i = start; i <= end; i++)
-                {
-                    _availabilityQueue.Add(new CheckingResult
-                    {
-                        Ip = IpConverter.LongToString(i)
-                    });
-                }
+                FillQueue(start, end);
 
                 ProcessAvailability();
+
                 ProcessHttp();
 
-                _tcs.SetResult(_availabilityQueue);
+                return _availabilityQueue;
             });
 
-            return _tcs.Task;
+            return _task;
+        }
+
+        private void FillQueue(long start, long end)
+        {
+            for (long i = start; i <= end; i++)
+            {
+                _cancelTokenSource.Token.ThrowIfCancellationRequested();
+
+                _availabilityQueue.Add(new CheckingResult
+                {
+                    Ip = IpConverter.LongToString(i)
+                });
+            }
         }
 
         private void ProcessHttp()
@@ -49,6 +56,8 @@ namespace TestTask.Logic
             bool usePort = !string.IsNullOrEmpty(Settings.Default.HttpCheckPort);
             foreach (var item in _httpQueue)
             {
+                _cancelTokenSource.Token.ThrowIfCancellationRequested();
+
                 string address;
                 if (usePort)
                 {
@@ -79,6 +88,8 @@ namespace TestTask.Logic
             var ping = new Ping();
             foreach (var item in _availabilityQueue)
             {
+                _cancelTokenSource.Token.ThrowIfCancellationRequested();
+
                 var res = ping.Send(item.Ip);
                 item.IPStatus = res.Status;
 
@@ -91,9 +102,9 @@ namespace TestTask.Logic
 
         public void Dispose()
         {
-            if (_started)
+            if (!_task.IsCompleted)
             {
-                _tcs.SetCanceled();
+                _cancelTokenSource.Cancel();
             }
         }
     }

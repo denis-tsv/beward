@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Net.NetworkInformation;
+using System.Threading;
 using System.Threading.Tasks;
 using TestTask.Model;
 using TestTask.Properties;
@@ -10,19 +11,16 @@ namespace TestTask.Logic
 {
     public class ParallelForIPChecker : IIPChecker
     {
-        private TaskCompletionSource<List<CheckingResult>> _tcs;
         private readonly List<CheckingResult> _result = new List<CheckingResult>();
         private readonly List<CheckingResult> _httpList = new List<CheckingResult>();
-        private bool _interrupted = false;
-        private ParallelLoopResult? _currentLoopResult;
+        private Task<List<CheckingResult>> _task;
+        private CancellationTokenSource _cancelTokenSource;
 
         public void Dispose()
         {
-            if (_currentLoopResult.HasValue && !_currentLoopResult.Value.IsCompleted)
+            if (!_task.IsCompleted)
             {
-                _interrupted = true;
-                while (!_currentLoopResult.Value.IsCompleted) ;
-                _tcs.SetCanceled();
+                _cancelTokenSource.Cancel();
             }
         }
 
@@ -33,27 +31,32 @@ namespace TestTask.Logic
 
             if (start > end) throw new InvalidOperationException("Start > End");
 
-            _tcs = new TaskCompletionSource<List<CheckingResult>>();
-
-            Task.Factory.StartNew(() =>
+            _cancelTokenSource = new CancellationTokenSource();
+            
+            _task = Task.Factory.StartNew(() =>
             {
-                _currentLoopResult = Parallel.For(start, end + 1, CreateCheckingResult);
+                //it is possible to put cancellation token into ParallelOptions, but it is unable to take it from ParallelOptions, so I will use field
+                Parallel.For(start, end + 1, CreateCheckingResult);
 
-                _currentLoopResult = Parallel.ForEach(_result, CheckAvailability);
+                //_cancelTokenSource.Token.ThrowIfCancellationRequested();
 
-                _currentLoopResult = Parallel.ForEach(_httpList, CheckHttp);
+                Parallel.ForEach(_result, CheckAvailability);
 
-                _currentLoopResult = null;
+                //_cancelTokenSource.Token.ThrowIfCancellationRequested();
 
-                _tcs.SetResult(_result);
-            });
+                Parallel.ForEach(_httpList, CheckHttp);
 
-            return _tcs.Task;
+                //_cancelTokenSource.Token.ThrowIfCancellationRequested();
+                
+                return _result;
+            }, _cancelTokenSource.Token);
+
+            return _task;
         }
 
         private void CreateCheckingResult(long ip, ParallelLoopState state)
         {
-            if (_interrupted) state.Stop();
+            _cancelTokenSource.Token.ThrowIfCancellationRequested(); //TODO replace by state.Stop() and throw exception in CheckIpRange method (state.Stop not throws exception)
 
             var item = new CheckingResult { Ip = IpConverter.LongToString(ip) };
             
@@ -65,8 +68,8 @@ namespace TestTask.Logic
 
         private void CheckHttp(CheckingResult check, ParallelLoopState state)
         {
-            if (_interrupted) state.Stop();
-
+            _cancelTokenSource.Token.ThrowIfCancellationRequested();  //TODO replace by state.Stop() and throw exception in CheckIpRange method (state.Stop not throws exception)
+            
             bool usePort = !string.IsNullOrEmpty(Settings.Default.HttpCheckPort);
 
             string address;
@@ -98,12 +101,13 @@ namespace TestTask.Logic
 
         private void CheckAvailability(CheckingResult check, ParallelLoopState state)
         {
-            if (_interrupted) state.Stop();
+            _cancelTokenSource.Token.ThrowIfCancellationRequested(); //TODO replace by state.Stop() and throw exception in CheckIpRange method (state.Stop not throws exception)
+            //if (_cancelTokenSource.Token.IsCancellationRequested) state.Stop();
 
             var ping = new Ping();
 
             var pingReply = ping.Send(check.Ip);
-            check.IPStatus = pingReply.Status;
+            check.IPStatus = pingReply.Status;//TODO maybe it is possible to cancel current request
 
             if (check.IPStatus == IPStatus.Success)
             {

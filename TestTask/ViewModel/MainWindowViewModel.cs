@@ -165,15 +165,13 @@ namespace TestTask.ViewModel
         {
             _ipChecker.Dispose();
             _ipChecker = null;
-
-            IsBusy = false;
         }
 
         private async void OnStartQueuesChecking()
         {
             var startTime = DateTime.Now;
 
-            _ipChecker = new ParallelIPChecker();
+            _ipChecker = new QueuesIPChecker();
 
             await StartChecking();
 
@@ -210,7 +208,8 @@ namespace TestTask.ViewModel
 
             try
             {   
-                CheckingResults = await _ipChecker.CheckIpRange(IPAddress.Parse(FromIp), IPAddress.Parse(ToIp));
+                var res = await _ipChecker.CheckIpRange(IPAddress.Parse(FromIp), IPAddress.Parse(ToIp));
+                CheckingResults = res;
             }
             catch (Exception ex)
             {

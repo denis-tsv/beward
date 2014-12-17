@@ -119,7 +119,7 @@
     </Compile>
     <Compile Include="Model\CheckingResult.cs" />
     <Compile Include="Converters\BooleanNegationConverter.cs" />
-    <Compile Include="Logic\ParallelIpChecker.cs" />
+    <Compile Include="Logic\QueuesIPChecker.cs" />
     <Compile Include="View\MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>

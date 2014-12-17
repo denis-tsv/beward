@@ -7,7 +7,7 @@ namespace TestTask.Model
     {
         public string Ip { get; set; }
 
-        public IPStatus IPStatus { get; set; }
+        public IPStatus? IPStatus { get; set; }
 
         public HttpStatusCode? HttpStatusCode { get; set; }
     }
