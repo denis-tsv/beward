@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Net;
 
-namespace TestTask
+namespace TestTask.ViewModel
 {
     public class IPAddressAttribute : ValidationAttribute
     {

@@ -11,30 +11,32 @@ using System.Windows.Input;
 using Microsoft.Practices.Prism.Mvvm;
 using Microsoft.Practices.Prism.ViewModel;
 using ReactiveUI;
+using TestTask.Logic;
+using TestTask.Model;
 
-namespace TestTask
+namespace TestTask.ViewModel
 {
     public class MainWindowViewModel : BindableBase, INotifyDataErrorInfo
     {
+        #region Fields
+
         private bool _isBusy;
-        private ReactiveCommand<object> _startParallelCheckingCommand;
+        private ReactiveCommand<object> _startQueuesCheckingCommand;
+        private ReactiveCommand<object> _startParallelForCheckingCommand;
         private ReactiveCommand<object> _startSequentalCheckingCommand;
         private ReactiveCommand<object> _cancelCommand;
         private IIPChecker _ipChecker;
         private List<CheckingResult> _checkingResults;
         private string _fromIp;
         private string _toIp;
-        private TimeSpan _parallelTime;
+        private TimeSpan _parallelForTime;
         private TimeSpan _sequentalTime;
+        private TimeSpan _queuesTime;
         private ErrorsContainer<ValidationResult> _errorsContainer;
 
-        protected ErrorsContainer<ValidationResult> ErrorsContainer
-        {
-            get
-            {
-                return _errorsContainer ?? (_errorsContainer = new ErrorsContainer<ValidationResult>(OnErrorsChanged));
-            }
-        }
+        #endregion
+
+        #region Properties
 
         [Required]
         [IPAddress]
@@ -60,24 +62,22 @@ namespace TestTask
             }
         }
 
-        private void ValidateProperty(object value, [CallerMemberName] string propertyName = null)
-        {
-            var res = new List<ValidationResult>();
-            var validationresult = Validator.TryValidateProperty(value, new ValidationContext(this, null, null) {MemberName = propertyName}, res);
-            ErrorsContainer.SetErrors(propertyName, res);
-            HasErrors = validationresult;
-        }
-
         public bool IsBusy
         {
             get { return _isBusy; }
-            set { SetProperty(ref _isBusy, value); }
+            private set { SetProperty(ref _isBusy, value); }
         }
 
-        public TimeSpan ParallelTime
+        public TimeSpan QueuesTime
         {
-            get { return _parallelTime; }
-            private set { SetProperty(ref _parallelTime, value); }
+            get { return _queuesTime; }
+            private set { SetProperty(ref _queuesTime, value); }
+        }
+
+        public TimeSpan ParallelForTime
+        {
+            get { return _parallelForTime; }
+            private set { SetProperty(ref _parallelForTime, value); }
         }
 
         public TimeSpan SequentalTime
@@ -85,6 +85,21 @@ namespace TestTask
             get { return _sequentalTime; }
             private set { SetProperty(ref _sequentalTime, value); }
         }
+
+        public List<CheckingResult> CheckingResults
+        {
+            get { return _checkingResults; }
+            private set { SetProperty(ref _checkingResults, value); }
+        }
+
+        protected ErrorsContainer<ValidationResult> ErrorsContainer
+        {
+            get { return _errorsContainer ?? (_errorsContainer = new ErrorsContainer<ValidationResult>(OnErrorsChanged)); }
+        }
+
+        #endregion
+
+        #region Commands
 
         public ICommand StartSequentalCheckingCommand
         {
@@ -100,17 +115,31 @@ namespace TestTask
             }
         }
 
-        public ICommand StartParallelCheckingCommand
+        public ICommand StartParallelForCheckingCommand
         {
             get
             {
-                if (_startParallelCheckingCommand == null)
+                if (_startParallelForCheckingCommand == null)
                 {
                     var canExecute = this.WhenAny(vm => vm.IsBusy, vm => vm.FromIp, vm => vm.ToIp, vm => vm.HasErrors, (busy, from, to, errors) => busy.Value == false && from.Value != null && to.Value != null && !errors.Value);
-                    _startParallelCheckingCommand = ReactiveCommand.Create(canExecute);
-                    _startParallelCheckingCommand.Subscribe(_ => OnStartParallelChecking());
+                    _startParallelForCheckingCommand = ReactiveCommand.Create(canExecute);
+                    _startParallelForCheckingCommand.Subscribe(_ => OnStartParallelForChecking());
                 }
-                return _startParallelCheckingCommand;
+                return _startParallelForCheckingCommand;
+            }
+        }
+       
+        public ICommand StartQueuesCheckingCommand
+        {
+            get
+            {
+                if (_startQueuesCheckingCommand == null)
+                {
+                    var canExecute = this.WhenAny(vm => vm.IsBusy, vm => vm.FromIp, vm => vm.ToIp, vm => vm.HasErrors, (busy, from, to, errors) => busy.Value == false && from.Value != null && to.Value != null && !errors.Value);
+                    _startQueuesCheckingCommand = ReactiveCommand.Create(canExecute);
+                    _startQueuesCheckingCommand.Subscribe(_ => OnStartQueuesChecking());
+                }
+                return _startQueuesCheckingCommand;
             }
         }
 
@@ -129,12 +158,9 @@ namespace TestTask
             }
         }
 
-        public List<CheckingResult> CheckingResults
-        {
-            get { return _checkingResults; }
-            set { SetProperty(ref _checkingResults, value); }
-        }
+        #endregion
 
+        #region Methods
         private void OnCancel()
         {
             _ipChecker.Dispose();
@@ -143,15 +169,15 @@ namespace TestTask
             IsBusy = false;
         }
 
-        private async void OnStartParallelChecking()
+        private async void OnStartQueuesChecking()
         {
             var startTime = DateTime.Now;
 
-            _ipChecker = new ParallelIpChecker();
+            _ipChecker = new ParallelIPChecker();
 
             await StartChecking();
 
-            ParallelTime = DateTime.Now - startTime;
+            QueuesTime = DateTime.Now - startTime;
         }
 
         private async void OnStartSequentalChecking()
@@ -165,6 +191,17 @@ namespace TestTask
             SequentalTime = DateTime.Now - startTime;
         }
 
+        private async void OnStartParallelForChecking()
+        {
+            var startTime = DateTime.Now;
+
+            _ipChecker = new ParallelForIPChecker(); 
+
+            await StartChecking();
+
+            ParallelForTime = DateTime.Now - startTime;
+        }
+        
         private async Task StartChecking()
         {
             IsBusy = true;
@@ -185,6 +222,18 @@ namespace TestTask
             }
         }
 
+        private void ValidateProperty(object value, [CallerMemberName] string propertyName = null)
+        {
+            var res = new List<ValidationResult>();
+            var validationresult = Validator.TryValidateProperty(value, new ValidationContext(this, null, null) { MemberName = propertyName }, res);
+            ErrorsContainer.SetErrors(propertyName, res);
+            HasErrors = validationresult;
+        }
+
+        #endregion
+
+        #region INotifyDataErrorInfo implementation
+
         public IEnumerable GetErrors(string propertyName)
         {
             return ErrorsContainer.GetErrors(propertyName);
@@ -202,5 +251,7 @@ namespace TestTask
         {
             if (ErrorsChanged != null) ErrorsChanged(this, new DataErrorsChangedEventArgs(propertyName));
         }
+
+        #endregion
     }
 }

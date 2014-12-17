@@ -104,6 +104,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Logic\ParallelForIpChecker.cs" />
     <Compile Include="ViewModel\IPAddressAttribute.cs" />
     <Compile Include="Logic\IIPChecker.cs" />
     <Compile Include="Logic\IpConverter.cs" />

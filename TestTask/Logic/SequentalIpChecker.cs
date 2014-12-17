@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Threading.Tasks;
-using TestTask.IPChecker;
+using TestTask.Model;
 using TestTask.Properties;
 
-namespace TestTask
+namespace TestTask.Logic
 {
     public class SequentalIpChecker : IIPChecker
     {

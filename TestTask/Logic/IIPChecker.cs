@@ -2,8 +2,9 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
+using TestTask.Model;
 
-namespace TestTask
+namespace TestTask.Logic
 {
     public interface IIPChecker : IDisposable
     {

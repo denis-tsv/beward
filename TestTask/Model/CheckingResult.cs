@@ -1,7 +1,7 @@
 ﻿using System.Net;
 using System.Net.NetworkInformation;
 
-namespace TestTask
+namespace TestTask.Model
 {
     public class CheckingResult
     {

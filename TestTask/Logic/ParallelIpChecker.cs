@@ -5,28 +5,25 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Threading;
 using System.Threading.Tasks;
-using TestTask.IPChecker;
+using TestTask.Model;
 using TestTask.Properties;
 
-namespace TestTask
+namespace TestTask.Logic
 {
-    public class ParallelIpChecker : IIPChecker
+    public class ParallelIPChecker : IIPChecker
     {
-        private ConcurrentQueue<CheckingResult> _availabilityQueue = new ConcurrentQueue<CheckingResult>();
         private ConcurrentQueue<CheckingResult> _httpQueue = new ConcurrentQueue<CheckingResult>();
+        private List<CheckingResult> _result = new List<CheckingResult>();
         private Thread _availabilityCheckerThread;
         private Thread _httpCheckerThread;
 
-        private AutoResetEvent _availabilityEvent = new AutoResetEvent(false);
         private AutoResetEvent _httpEvent = new AutoResetEvent(false);
 
-        private bool _diapasonFinished;
         private bool _availabilityFinished = false;
 
-        private bool _interruptAvailabilityChecking = false;
-        private bool _interruptHttpChecking = false;
+        private bool _interrupt = false;
 
-        private bool _started = false;
+        private bool _finished = false;
         private TaskCompletionSource<List<CheckingResult>> _tcs;
         public Task<List<CheckingResult>> CheckIpRange(IPAddress from, IPAddress to)
         {
@@ -34,12 +31,16 @@ namespace TestTask
             long end = IpConverter.IPAddressToLong(to);
 
             if (start > end) throw new InvalidOperationException("Start > End");
-            _started = true;
-
+            
             _tcs = new TaskCompletionSource<List<CheckingResult>>();
 
             Task.Factory.StartNew(() =>
             {
+                for (long i = start; i <= end; i++)
+                {
+                    var item = new CheckingResult { Ip = IpConverter.LongToString(i) };
+                    _result.Add(item);
+                }
 
                 _availabilityCheckerThread = new Thread(CheckAvailability);
                 _availabilityCheckerThread.Start();
@@ -47,20 +48,12 @@ namespace TestTask
                 _httpCheckerThread = new Thread(CheckHttp);
                 _httpCheckerThread.Start();
 
-                var result = new List<CheckingResult>();
-                for (long i = start; i <= end; i++)
-                {
-                    var item = new CheckingResult { Ip = IpConverter.LongToString(i) };
-                    result.Add(item);
-                    _availabilityQueue.Enqueue(item);
-                    _availabilityEvent.Set();
-                }
-                _diapasonFinished = true;
-
                 _availabilityCheckerThread.Join();
                 _httpCheckerThread.Join();
 
-                _tcs.SetResult(result);
+                _finished = true;
+
+                _tcs.SetResult(_result);
             });
 
             return _tcs.Task;
@@ -74,11 +67,11 @@ namespace TestTask
             {
                 _httpEvent.WaitOne(100);
 
-                if (_interruptHttpChecking) return;
+                if (_interrupt) return;
 
                 while (!_httpQueue.IsEmpty)
                 {
-                    if (_interruptHttpChecking) return;
+                    if (_interrupt) return;
 
                     CheckingResult check;
                     if (_httpQueue.TryDequeue(out check))
@@ -111,7 +104,7 @@ namespace TestTask
                     }
                 }
 
-                if (_availabilityFinished || _interruptHttpChecking) break;
+                if (_availabilityFinished || _interrupt) break;
             }
         }
 
@@ -119,47 +112,30 @@ namespace TestTask
         {
             var ping = new Ping();
 
-            while (true)
+            foreach (var check in _result)
             {
-                _availabilityEvent.WaitOne(100);
+                if (_interrupt) return;
 
-                if (_interruptAvailabilityChecking) return;
+                var pingReply = ping.Send(check.Ip);
+                check.IPStatus = pingReply.Status;
 
-                while (!_availabilityQueue.IsEmpty)
+                if (check.IPStatus == IPStatus.Success)
                 {
-                    if (_interruptAvailabilityChecking) return;
-
-                    CheckingResult check;
-                    if (_availabilityQueue.TryDequeue(out check))
-                    {
-                        
-                        var pingReply = ping.Send(check.Ip);
-                        check.IPStatus = pingReply.Status;
-
-                        if (check.IPStatus == IPStatus.Success)
-                        {
-                            _httpQueue.Enqueue(check);
-                            _httpEvent.Set();
-                        }
-                    }
+                    _httpQueue.Enqueue(check);
+                    _httpEvent.Set();
                 }
-
-                if (_diapasonFinished || _interruptAvailabilityChecking) break;
             }
+
             _availabilityFinished = true;
         }
         
         public void Dispose()
         {
-            if (_started)
+            if (!_finished)
             {
                 _tcs.SetCanceled();
 
-                _interruptAvailabilityChecking = true;
-                _interruptHttpChecking = true;
-                
-                _availabilityCheckerThread.Join();
-                _httpCheckerThread.Join();
+                _interrupt = true;
             }
         }
     }

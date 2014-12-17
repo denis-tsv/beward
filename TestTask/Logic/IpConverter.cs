@@ -2,7 +2,7 @@
 using System.Linq;
 using System.Net;
 
-namespace TestTask.IPChecker
+namespace TestTask.Logic
 {
     public class IpConverter
     {
