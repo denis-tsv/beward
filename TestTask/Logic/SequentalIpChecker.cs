@@ -15,10 +15,12 @@ namespace TestTask.Logic
         private readonly List<CheckingResult> _httpQueue = new List<CheckingResult>();
         private Task<List<CheckingResult>> _task;
         private CancellationTokenSource _cancelTokenSource;
-        public Task<List<CheckingResult>> CheckIpRange(IPAddress from, IPAddress to)
+        private int _port;
+        public Task<List<CheckingResult>> CheckIpRange(IPAddress from, IPAddress to, int port)
         {
             long start = IpConverter.IPAddressToLong(from);
             long end = IpConverter.IPAddressToLong(to);
+            _port = port;
 
             if (start > end) throw new InvalidOperationException("Start > End");
 
@@ -53,15 +55,14 @@ namespace TestTask.Logic
 
         private void ProcessHttp()
         {
-            bool usePort = !string.IsNullOrEmpty(Settings.Default.HttpCheckPort);
             foreach (var item in _httpQueue)
             {
                 _cancelTokenSource.Token.ThrowIfCancellationRequested();
 
                 string address;
-                if (usePort)
+                if (_port != 0)
                 {
-                    var adresswithport = string.Format("{0}:{1}", item.Ip, Settings.Default.HttpCheckPort);
+                    var adresswithport = string.Format("{0}:{1}", item.Ip, _port);
                     address = string.Format(Settings.Default.HttpCheckAddressFormat, adresswithport);
                 }
                 else
@@ -77,7 +78,11 @@ namespace TestTask.Logic
                 }
                 catch (WebException we)
                 {
-                    item.HttpStatusCode = ((HttpWebResponse)we.Response).StatusCode;
+                    var response = we.Response as HttpWebResponse;
+                    if (response != null)
+                    {
+                        item.HttpStatusCode = response.StatusCode;
+                    }
                 }
 
             }

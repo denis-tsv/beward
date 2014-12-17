@@ -34,17 +34,5 @@ namespace TestTask.Properties {
                 this["HttpCheckAddressFormat"] = value;
             }
         }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("6064")]
-        public string HttpCheckPort {
-            get {
-                return ((string)(this["HttpCheckPort"]));
-            }
-            set {
-                this["HttpCheckPort"] = value;
-            }
-        }
     }
 }

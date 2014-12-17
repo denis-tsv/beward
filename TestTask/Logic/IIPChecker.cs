@@ -8,6 +8,6 @@ namespace TestTask.Logic
 {
     public interface IIPChecker : IDisposable
     {
-        Task<List<CheckingResult>> CheckIpRange(IPAddress from, IPAddress to); 
+        Task<List<CheckingResult>> CheckIpRange(IPAddress from, IPAddress to, int port); 
     }
 }

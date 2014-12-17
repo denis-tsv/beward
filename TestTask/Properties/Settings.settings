@@ -5,8 +5,5 @@
     <Setting Name="HttpCheckAddressFormat" Type="System.String" Scope="User">
       <Value Profile="(Default)">http://{0}/cgi-bin/admin/privacy.cgi</Value>
     </Setting>
-    <Setting Name="HttpCheckPort" Type="System.String" Scope="User">
-      <Value Profile="(Default)">6064</Value>
-    </Setting>
   </Settings>
 </SettingsFile>

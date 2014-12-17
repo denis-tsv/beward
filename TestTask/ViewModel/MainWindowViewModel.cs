@@ -33,6 +33,7 @@ namespace TestTask.ViewModel
         private TimeSpan _sequentalTime;
         private TimeSpan _queuesTime;
         private ErrorsContainer<ValidationResult> _errorsContainer;
+        private int _port;
 
         #endregion
 
@@ -60,6 +61,12 @@ namespace TestTask.ViewModel
                 SetProperty(ref _toIp, value);
                 ValidateProperty(value);
             }
+        }
+
+        public int Port
+        {
+            get { return _port; }
+            set { SetProperty(ref _port, value); }
         }
 
         public bool IsBusy
@@ -208,7 +215,7 @@ namespace TestTask.ViewModel
 
             try
             {   
-                var res = await _ipChecker.CheckIpRange(IPAddress.Parse(FromIp), IPAddress.Parse(ToIp));
+                var res = await _ipChecker.CheckIpRange(IPAddress.Parse(FromIp), IPAddress.Parse(ToIp), Port);
                 CheckingResults = res;
             }
             catch (Exception ex)

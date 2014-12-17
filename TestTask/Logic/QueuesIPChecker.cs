@@ -14,17 +14,18 @@ namespace TestTask.Logic
     {
         private ConcurrentQueue<CheckingResult> _httpQueue = new ConcurrentQueue<CheckingResult>();
         private List<CheckingResult> _result = new List<CheckingResult>();
-        
+        private int _port;
         private AutoResetEvent _httpEvent = new AutoResetEvent(false);
 
         private bool _availabilityFinished = false;
 
         private CancellationTokenSource _cancelTokenSource;
         private Task<List<CheckingResult>> _task;
-        public Task<List<CheckingResult>> CheckIpRange(IPAddress from, IPAddress to)
+        public Task<List<CheckingResult>> CheckIpRange(IPAddress from, IPAddress to, int port)
         {
             long start = IpConverter.IPAddressToLong(from);
             long end = IpConverter.IPAddressToLong(to);
+            _port = port;
 
             if (start > end) throw new InvalidOperationException("Start > End");
 
@@ -58,8 +59,6 @@ namespace TestTask.Logic
 
         private void CheckHttp()
         {
-            bool usePort = !string.IsNullOrEmpty(Settings.Default.HttpCheckPort);
-
             while (!_availabilityFinished)
             {
                 _cancelTokenSource.Token.ThrowIfCancellationRequested();
@@ -74,9 +73,9 @@ namespace TestTask.Logic
                     if (_httpQueue.TryDequeue(out check))
                     {
                         string address;
-                        if (usePort)
+                        if (_port != 0)
                         {
-                            var adresswithport = string.Format("{0}:{1}", check.Ip, Settings.Default.HttpCheckPort);
+                            var adresswithport = string.Format("{0}:{1}", check.Ip, _port);
                             address = string.Format(Settings.Default.HttpCheckAddressFormat, adresswithport);
                         }
                         else

@@ -32,8 +32,9 @@
                 <ColumnDefinition />
             </Grid.ColumnDefinitions>
             
-            <TextBlock Text="От" Grid.Row="0" Grid.Column="0" />
-            <TextBlock Text="До" Grid.Row="1" Grid.Column="0" />
+            <TextBlock Text="От IP" Grid.Row="0" Grid.Column="0" />
+            <TextBlock Text="До IP" Grid.Row="1" Grid.Column="0" />
+            <TextBlock Text="Порт" Grid.Row="2" Grid.Column="0" />
             
             <TextBox Text="{Binding FromIp, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}" 
                      IsEnabled="{Binding IsBusy, Converter={StaticResource BooleanNegationConverter}}" 
@@ -41,6 +42,7 @@
             <TextBox Text="{Binding ToIp, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}" 
                      IsEnabled="{Binding IsBusy, Converter={StaticResource BooleanNegationConverter}}"
                      Grid.Row="1" Grid.Column="1"/>
+            <xctk:IntegerUpDown Value="{Binding Port, Mode=TwoWay}" Minimum="0" Grid.Row="2" Grid.Column="1" IsEnabled="{Binding IsBusy, Converter={StaticResource BooleanNegationConverter}}" />
             
             <Button Content="Начать последовательную проверку" Command="{Binding StartSequentalCheckingCommand}" Grid.Row="0" Grid.Column="2" />
             <Button Content="Начать проверку через очереди" Command="{Binding StartQueuesCheckingCommand}" Grid.Row="1" Grid.Column="2" />
