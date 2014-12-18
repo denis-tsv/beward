@@ -110,6 +110,10 @@ namespace TestTask.Logic
                         _httpQueue.Add(item);
                     }
                 }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     item.Error = ex.Message;

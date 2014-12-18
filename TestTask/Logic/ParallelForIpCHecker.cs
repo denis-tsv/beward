@@ -118,6 +118,10 @@ namespace TestTask.Logic
                     }
                 }
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 check.Error = ex.Message;

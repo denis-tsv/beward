@@ -127,6 +127,10 @@ namespace TestTask.Logic
                         _httpEvent.Set();
                     }
                 }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     check.Error = ex.Message;
