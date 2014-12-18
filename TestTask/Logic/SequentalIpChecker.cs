@@ -29,23 +29,23 @@ namespace TestTask.Logic
 
             _task = Task.Factory.StartNew(() =>
             {
-                FillQueue(start, end);
+                FillQueue(start, end, _cancelTokenSource.Token);
 
-                ProcessAvailability();
+                ProcessAvailability(_cancelTokenSource.Token);
 
-                ProcessHttp();
+                ProcessHttp(_cancelTokenSource.Token);
 
                 return _availabilityQueue;
-            });
+            }, _cancelTokenSource.Token);
 
             return _task;
         }
 
-        private void FillQueue(long start, long end)
+        private void FillQueue(long start, long end, CancellationToken cancellationToken)
         {
             for (long i = start; i <= end; i++)
             {
-                _cancelTokenSource.Token.ThrowIfCancellationRequested();
+                cancellationToken.ThrowIfCancellationRequested();
 
                 _availabilityQueue.Add(new CheckingResult
                 {
@@ -54,11 +54,11 @@ namespace TestTask.Logic
             }
         }
 
-        private void ProcessHttp()
+        private void ProcessHttp(CancellationToken cancellationToken)
         {
             foreach (var check in _httpQueue)
             {
-                _cancelTokenSource.Token.ThrowIfCancellationRequested();
+                cancellationToken.ThrowIfCancellationRequested();
 
                 string address;
                 if (_port != 0)
@@ -76,7 +76,7 @@ namespace TestTask.Logic
                     try
                     {
                         var task = client.GetAsync(address, _cancelTokenSource.Token);
-                        task.Wait();
+                        task.Wait(cancellationToken);
                         check.HttpStatusCode = task.Result.StatusCode;
                     }
                     catch (OperationCanceledException)
@@ -92,26 +92,35 @@ namespace TestTask.Logic
             }
         }
 
-        private void ProcessAvailability()
+        private void ProcessAvailability(CancellationToken cancellationToken)
         {
             var ping = new Ping();
             foreach (var item in _availabilityQueue)
             {
-                _cancelTokenSource.Token.ThrowIfCancellationRequested();
+                cancellationToken.ThrowIfCancellationRequested();
 
-                var res = ping.Send(item.Ip);
-                item.IPStatus = res.Status;
-
-                if (res.Status == IPStatus.Success)
+                try
                 {
-                    _httpQueue.Add(item);
+                    var task = ping.SendPingAsync(item.Ip);
+                    task.Wait(cancellationToken);
+                    item.IPStatus = task.Result.Status;
+
+                    if (item.IPStatus == IPStatus.Success)
+                    {
+                        _httpQueue.Add(item);
+                    }
                 }
+                catch (Exception ex)
+                {
+                    item.Error = ex.Message;
+                }
+
             }
         }
 
         public void Dispose()
         {
-            if (!_task.IsCompleted)
+            if (_task != null && !_task.IsCompleted)
             {
                 _cancelTokenSource.Cancel();
             }

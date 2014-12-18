@@ -20,7 +20,7 @@ namespace TestTask.Logic
 
         public void Dispose()
         {
-            if (!_task.IsCompleted)
+            if (_task!= null && !_task.IsCompleted)
             {
                 _cancelTokenSource.Cancel();
             }
@@ -38,12 +38,13 @@ namespace TestTask.Logic
             
             _task = Task.Factory.StartNew(() =>
             {
-                //it is possible to put cancellation token into ParallelOptions, but it is unable to take it from ParallelOptions, so I will use field
-                Parallel.For(start, end + 1, CreateCheckingResult);
+                var parallelOptions = new ParallelOptions {CancellationToken = _cancelTokenSource.Token};
 
-                Parallel.ForEach(_result, CheckAvailability);
+                Parallel.For(start, end + 1, parallelOptions, CreateCheckingResult);
 
-                Parallel.ForEach(_httpList, CheckHttp);
+                Parallel.ForEach(_result, parallelOptions, CheckAvailability);
+
+                Parallel.ForEach(_httpList, parallelOptions, CheckHttp);
 
                 return _result;
             }, _cancelTokenSource.Token);
@@ -51,7 +52,7 @@ namespace TestTask.Logic
             return _task;
         }
 
-        private void CreateCheckingResult(long ip, ParallelLoopState state)
+        private void CreateCheckingResult(long ip)
         {
             _cancelTokenSource.Token.ThrowIfCancellationRequested(); 
 
@@ -63,7 +64,7 @@ namespace TestTask.Logic
             }
         }
 
-        private void CheckHttp(CheckingResult check, ParallelLoopState state)
+        private void CheckHttp(CheckingResult check)
         {
             _cancelTokenSource.Token.ThrowIfCancellationRequested();  
             
@@ -83,7 +84,7 @@ namespace TestTask.Logic
                 try
                 {
                     var task = client.GetAsync(address, _cancelTokenSource.Token);
-                    task.Wait();
+                    task.Wait(_cancelTokenSource.Token);
                     check.HttpStatusCode = task.Result.StatusCode;
                 }
                 catch (OperationCanceledException)
@@ -97,22 +98,31 @@ namespace TestTask.Logic
             }
         }
 
-        private void CheckAvailability(CheckingResult check, ParallelLoopState state)
+        private void CheckAvailability(CheckingResult check)
         {
             _cancelTokenSource.Token.ThrowIfCancellationRequested(); 
             
             var ping = new Ping();
 
-            var pingReply = ping.Send(check.Ip);
-            check.IPStatus = pingReply.Status;//TODO implement cancellation by Cancellation token
-
-            if (check.IPStatus == IPStatus.Success)
+            try
             {
-                lock (_httpList)
+                var task = ping.SendPingAsync(check.Ip);
+                task.Wait(_cancelTokenSource.Token);
+                check.IPStatus = task.Result.Status;
+
+                if (check.IPStatus == IPStatus.Success)
                 {
-                    _httpList.Add(check);    
+                    lock (_httpList)
+                    {
+                        _httpList.Add(check);
+                    }
                 }
             }
+            catch (Exception ex)
+            {
+                check.Error = ex.Message;
+            }
+            
         }
     }
 }
