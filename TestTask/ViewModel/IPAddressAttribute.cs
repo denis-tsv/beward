@@ -9,7 +9,7 @@ namespace TestTask.ViewModel
         {
             IPAddress address;
             var res = IPAddress.TryParse(value.ToString(), out address);
-            return res ? ValidationResult.Success : new ValidationResult("Invalid IP address");
+            return res ? ValidationResult.Success : new ValidationResult(ErrorMessageString);
         }
     }
 }
